@@ -19,6 +19,11 @@ public class NQueenTest {
     }
 
     @Test
+    public void nQueen6() {
+        assertEquals(0, NQueen.nQueen(6).size());
+    }
+
+    @Test
     public void nQueen4() {
         List<List<Integer>> solution = NQueen.nQueen(4);
 
@@ -27,8 +32,10 @@ public class NQueenTest {
         List<Integer> expectSolution0 = Arrays.asList(1, 3, 0, 2);
         List<Integer> expectSolution1 = Arrays.asList(2, 0, 3, 1);
 
-        assertEquals(expectSolution0, solution.get(0));
-        assertEquals(expectSolution1, solution.get(1));
+        assertFalse(solution.get(0).equals(solution.get(1)));
+
+        assertTrue(solution.stream().anyMatch(expectSolution0::equals));
+        assertTrue(solution.stream().anyMatch(expectSolution1::equals));
     }
 
     @Test
@@ -39,6 +46,6 @@ public class NQueenTest {
 
         List<Integer> expectSolution1 = Arrays.asList(2, 5, 7, 1, 3, 0, 6, 4);
 
-        assertEquals(expectSolution1, solution.get(1));
+        assertTrue(solution.stream().anyMatch(expectSolution1::equals));
     }
 }
