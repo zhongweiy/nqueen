@@ -2,6 +2,7 @@ package org.zw.nqueen;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Stack;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
@@ -50,9 +51,26 @@ public class NQueen {
 
     static List<List<Integer>> nQueen(Integer n) {
         List<List<Integer>> solution = new ArrayList<>();
-        List<Integer> cur = new ArrayList<>();
+        Stack<List<Integer>> stack = new Stack<>();
+        stack.push(new ArrayList<>());
 
-        backTracking(cur, n, solution);
+        while (!stack.empty()) {
+            List<Integer> cur = stack.pop();
+            if (cur.size() == n) {
+                // Deep copy of cur list.
+                solution.add(cur.stream().map(Integer::new).collect(toList()));
+            } else {
+                for (int i = 0; i < n; ++i) {
+                    cur.add(i);
+                    if (isValid(cur)) {
+                        List<Integer> curClone = cur
+                                .stream().map(Integer::new).collect(toList());
+                        stack.push(curClone);
+                    }
+                    cur.remove(cur.size() - 1);
+                }
+            }
+        }
 
         return solution;
     }
