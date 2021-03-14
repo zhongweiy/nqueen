@@ -2,22 +2,49 @@ package org.zw.nqueen;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
 
 public class NQueen {
     private static final double EPSILON = 0.0000001;
+    private static final double NANO_PER_SECOND = 1_000_000_000.0;
+    private static final int SOLUTION_PRINT_LIMIT = 10;
 
     public static void main(String[] args) {
-        Integer n = 8;
+        if (args.length != 1) {
+            System.err.println("USAGE: nqueen n");
+            System.exit(1);
+        }
+
+        Integer n = null;
+
+        try {
+            n = Integer.parseInt(args[0]);
+        } catch (NumberFormatException e) {
+            System.err.println("Argument" + args[0] + " must be an integer.");
+            System.exit(1);
+        }
+
+        long start = System.nanoTime();
         List<List<Integer>> solution = nQueen(n);
-        System.out.println(String.format("N=%s, Solution size=%s, Solutions = %s",
-                n, solution.size(), solution));
+        long elapsedTime = System.nanoTime() - start;
+        double seconds = (double)elapsedTime / NANO_PER_SECOND;
+
+        List<List<Integer>> firstNSolution = solution.stream()
+                .limit(SOLUTION_PRINT_LIMIT)
+                .collect(Collectors.toList());
+
+        System.out.println(String.format("N=%s, " +
+                        "There are %s solutions, Solutions are: %s\n" +
+                        "Time (seconds):%s",
+                n, solution.size(), firstNSolution, seconds));
 
         if (solution.size() > 0) {
             int i = 1;
-            System.out.println(String.format("Solution#=%s:", i));
-            printQueens(solution.get(1));
+            System.out.println(String.format("Solution(#%s):%s",
+                    i, solution.get(i)));
+            printQueens(solution.get(i));
         }
     }
 
