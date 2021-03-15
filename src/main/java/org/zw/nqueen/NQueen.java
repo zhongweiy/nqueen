@@ -1,13 +1,9 @@
 package org.zw.nqueen;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Stack;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class NQueen {
-    private static final double EPSILON = 0.0000001;
     private static final double NANO_PER_SECOND = 1_000_000_000.0;
     private static final int SOLUTION_PRINT_LIMIT = 10;
 
@@ -59,10 +55,14 @@ public class NQueen {
         int row;
         // The size of board.
         int n;
+        // Store all angles for each queen between other previous rows' queens.
+        List<Set<Double>> angles;
+
         State(int n) {
             this.n = n;
             positions = new int[n];
             occupied = new boolean[n];
+            angles = new ArrayList<>();
             row = -1;
 
             for (int i = 0; i < n; ++i) {
@@ -77,6 +77,11 @@ public class NQueen {
             c.n = n;
             System.arraycopy(positions, 0, c.positions, 0, n);
             System.arraycopy(occupied, 0, c.occupied, 0, n);
+
+            for (int i = 0; i < angles.size(); ++i) {
+                c.angles.add(angles.get(i).stream().map(Double::new)
+                        .collect(Collectors.toSet()));
+            }
             return c;
         }
     }
@@ -99,8 +104,12 @@ public class NQueen {
                     cur.positions[cur.row] = i;
                     if (isVerticalValid(cur.occupied, i)) {
                         cur.occupied[i] = true;
-                        if (isDiagonalValid(cur) && isAnyAngleValid(cur)) {
-                            stack.push(cur.copy());
+                        if (isDiagonalValid(cur)) {
+                            if (isAnyAngleValid(cur)) {
+                                stack.push(cur.copy());
+                                // Backtracking.
+                                cur.angles.remove(cur.angles.size() - 1);
+                            }
                         }
                         // Backtracking.
                         cur.occupied[i] = false;
@@ -140,26 +149,20 @@ public class NQueen {
      * If exists, it is not valid and return false, otherwise return true.
      */
     private static boolean isAnyAngleValid(State cur) {
-        int row0 = cur.row;
-        int col0 = cur.positions[row0];
+        int curRow = cur.row;
+        int curCol = cur.positions[curRow];
+        Set<Double> newAngles = new HashSet<>();
 
-        for (int row1 = row0 - 1; row1 > 0; --row1) {
-            double col1 = cur.positions[row1];
-            double angle1 = (col1 - col0) / (row1 - row0);
-
-            for (int row2 = row1 - 1; row2 >= 0; --row2) {
-                double col2 = cur.positions[row2];
-
-                if ((col0 < col1 && col1 < col2)
-                        || (col0 > col1 && col1 > col2)) {
-                    double angle2 = (col2 - col0) / (row2 - row0);
-
-                    if (Math.abs(angle1 - angle2) < EPSILON) {
-                        return false;
-                    }
-                }
+        for (int rowPrev = curRow - 1; rowPrev >= 0; --rowPrev) {
+            int colPrev = cur.positions[rowPrev];
+            double angle = ((double)colPrev - curCol) / (rowPrev - curRow);
+            if (cur.angles.get(rowPrev).contains(angle)) {
+                return false;
             }
+            newAngles.add(angle);
         }
+
+        cur.angles.add(newAngles);
 
         return true;
     }

@@ -26,6 +26,7 @@
 
    - iterative with boolean array and add more condition in any angle validation
        N=15, Solution size=18752, Time (seconds):9.72087685
+     Other tiny change includes replace double computation with float computation.
      profiling file: profile_iterative_3st_add_extra_condition_for_any_angle_validation.html
 
 ** This biggest number tried is N = 17. Here is the result:
