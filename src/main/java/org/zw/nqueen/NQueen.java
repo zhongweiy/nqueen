@@ -1,17 +1,13 @@
 package org.zw.nqueen;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
-import static java.util.stream.Collectors.toList;
-
 public class NQueen {
-    private static final double EPSILON = 0.0000001;
     private static final double NANO_PER_SECOND = 1_000_000_000.0;
     private static final int SOLUTION_PRINT_LIMIT = 10;
     private static final int EXAMPLE_SOLUTION = 1;
@@ -59,7 +55,7 @@ public class NQueen {
     static List<List<Integer>> nQueen(int n) {
         // Split computation into multi-thread to run.
         ExecutorService executor = Executors.newFixedThreadPool(N_THREAD);
-        List<Future<List<List<Integer>>>> futures = new ArrayList<>();
+        List<Future<List<int[]>>> futures = new ArrayList<>();
         for (int i = 0; i < N_THREAD; ++i) {
             int finalI = i;
             futures.add(executor.submit(() -> taskSplitNQueen(n, finalI)));
@@ -67,9 +63,16 @@ public class NQueen {
         executor.shutdown();
 
         List<List<Integer>> solutions = new ArrayList<>();
-        for (Future<List<List<Integer>>> f : futures) {
+        for (Future<List<int[]>> f : futures) {
             try {
-                solutions.addAll(f.get());
+                List<int[]> solution = f.get();
+                // List<Integer> is easy to print. So convert int[] to
+                // List<Integer>.
+                for (int[] arr : solution) {
+                    List<Integer> list = Arrays.stream(arr).boxed()
+                            .collect(Collectors.toList());
+                    solutions.add(list);
+                }
             } catch (InterruptedException | ExecutionException e) {
                 e.printStackTrace();
                 System.err.println("Exception happens in task execution.");
@@ -81,63 +84,98 @@ public class NQueen {
     /**
      * Task is split into multi-thread on the first level of backtracking.
      */
-    private static List<List<Integer>> taskSplitNQueen(int n, int taskId) {
-        List<List<Integer>> solution = new ArrayList<>();
-        List<Integer> cur = new ArrayList<>();
+    private static List<int[]> taskSplitNQueen(int n, int taskId) {
+        List<int[]> solution = new ArrayList<>();
+        State cur = new State(n);
 
         backTracking(cur, n, solution, taskId);
 
         return solution;
     }
 
-    private static void backTracking(List<Integer> cur,
+    /**
+     * State class represents the backtracking status. It was a simple
+     * List<Integer> at beginning. But to optimize vertical validation,
+     * {@link State#occupied} boolean array is introduced. To optimize any
+     * angle validation, {@link State#angles} is introduced.
+     */
+    private static class State {
+        // Store the board. positions[3] = 5 means there is a queen on row(3)
+        // and col(5).
+        int[] positions;
+        // Store information for vertical validation. occupied[3] means there is
+        // a queen on col(3) on any row.
+        boolean[] occupied;
+        // Current backtracking row.
+        int row;
+        // The size of board.
+        int n;
+        // Store all angles for each queen between other previous rows' queens.
+        List<Set<Double>> angles;
+
+        State(int n) {
+            this.n = n;
+            positions = new int[n];
+            occupied = new boolean[n];
+            angles = new ArrayList<>();
+            row = -1;
+
+            for (int i = 0; i < n; ++i) {
+                positions[i] = -1;
+                occupied[i] = false;
+            }
+        }
+    }
+
+    private static void backTracking(State cur,
                                      int n,
-                                     List<List<Integer>> solution,
+                                     List<int[]> solution,
                                      int taskId) {
-        if (cur.size() == n) {
+        if (cur.row == n - 1) {
             // Deep copy of cur list.
-            solution.add(cur.stream().map(Integer::new).collect(toList()));
+            int[] curCopy = new int[n];
+            System.arraycopy(cur.positions, 0, curCopy, 0, n);
+            solution.add(curCopy);
             return;
         }
 
         for (int i = 0; i < n; ++i) {
             // Only split the task to different thread at first back tracking
             // level.
-            if ((cur.size() == 0 && (i % N_THREAD == taskId))
-                    || cur.size() > 0) {
-                cur.add(i);
-                if (isValid(cur)) {
-                    backTracking(cur, n, solution, taskId);
+            if ((cur.row == -1 && (i % N_THREAD == taskId))
+                    || cur.row >= 0) {
+                cur.row++;
+                cur.positions[cur.row] = i;
+                if (isVerticalValid(cur.occupied, i)) {
+                    cur.occupied[i] = true;
+                    if (isDiagonalValid(cur)) {
+                        if (isAnyAngleValid(cur)) {
+                            backTracking(cur, n, solution, taskId);
+                            // Backtrack to previous angles.
+                            cur.angles.remove(cur.angles.size() - 1);
+                        }
+                    }
+                    // Backtrack to previous occupied.
+                    cur.occupied[i] = false;
                 }
-                cur.remove(cur.size() - 1);
+                // Backtrack to previous positions.
+                cur.positions[cur.row] = -1;
+                cur.row--;
             }
         }
     }
 
-    private static boolean isValid(List<Integer> cur) {
-        return isVerticalValid(cur) &&
-                isDiagonalValid(cur) &&
-                isAnyAngleValid(cur);
+    private static boolean isVerticalValid(boolean[] occupied, int col) {
+        return !occupied[col];
     }
 
-    private static boolean isVerticalValid(List<Integer> cur) {
-        int last = cur.get(cur.size() - 1);
-        for (int i = 0; i < cur.size() - 1; ++i) {
-            if (last == cur.get(i)) {
-                return false;
-            }
-        }
+    private static boolean isDiagonalValid(State cur) {
+        int curRow = cur.row;
+        int curCol = cur.positions[curRow];
+        for (int row = 0; row < curRow; ++row) {
+            int col = cur.positions[row];
 
-        return true;
-    }
-
-    private static boolean isDiagonalValid(List<Integer> cur) {
-        int lastRow = cur.size() - 1;
-        int lastCol = cur.get(lastRow);
-        for (int row = 0; row < cur.size() - 1; ++row) {
-            int col = cur.get(row);
-
-            if (Math.abs(row - lastRow) == Math.abs(col - lastCol)) {
+            if (Math.abs(row - curRow) == Math.abs(col - curCol)) {
                 return false;
             }
         }
@@ -149,23 +187,21 @@ public class NQueen {
      * Check whether there exists 3 queens are in a straight line at ANY angle.
      * If exists, it is not valid and return false, otherwise return true.
      */
-    private static boolean isAnyAngleValid(List<Integer> cur) {
-        int row0 = cur.size() - 1;
-        int col0 = cur.get(row0);
+    private static boolean isAnyAngleValid(State cur) {
+        int curRow = cur.row;
+        int curCol = cur.positions[curRow];
+        Set<Double> newAngles = new HashSet<>();
 
-        for (int row1 = row0 - 1; row1 > 0; --row1) {
-            double col1 = cur.get(row1);
-            double angle1 = (col1 - col0) / (row1 - row0);
-
-            for (int row2 = row1 - 1; row2 >= 0; --row2) {
-                double col2 = cur.get(row2);
-                double angle2 = (col2 - col0) / (row2 - row0);
-
-                if (Math.abs(angle1 - angle2) < EPSILON) {
-                    return false;
-                }
+        for (int rowPrev = curRow - 1; rowPrev >= 0; --rowPrev) {
+            int colPrev = cur.positions[rowPrev];
+            double angle = ((double)colPrev - curCol) / (rowPrev - curRow);
+            if (cur.angles.get(rowPrev).contains(angle)) {
+                return false;
             }
+            newAngles.add(angle);
         }
+
+        cur.angles.add(newAngles);
 
         return true;
     }
@@ -185,6 +221,7 @@ public class NQueen {
                     sb.append(" ,");
                 }
                 if (j == n - 1) {
+                    sb.setLength(sb.length() - 1);
                     sb.append("|\n");
                 }
             }
