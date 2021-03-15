@@ -1,11 +1,10 @@
 package org.zw.nqueen;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Stack;
 import java.util.stream.Collectors;
-
-import static java.util.stream.Collectors.toList;
 
 public class NQueen {
     private static final double EPSILON = 0.0000001;
@@ -49,75 +48,86 @@ public class NQueen {
         }
     }
 
+    private static class State {
+        // Store the board. positions[3] = 5 means there is a queen on row(3)
+        // and col(5).
+        int[] positions;
+        // Store information for vertical validation. occupied[3] means there is
+        // a queen on col(3) on any row.
+        boolean[] occupied;
+        // Current backtracking row.
+        int row;
+        // The size of board.
+        int n;
+        State(int n) {
+            this.n = n;
+            positions = new int[n];
+            occupied = new boolean[n];
+            row = -1;
+
+            for (int i = 0; i < n; ++i) {
+                positions[i] = -1;
+                occupied[i] = false;
+            }
+        }
+
+        State copy() {
+            State c = new State(positions.length);
+            c.row = row;
+            c.n = n;
+            System.arraycopy(positions, 0, c.positions, 0, n);
+            System.arraycopy(occupied, 0, c.occupied, 0, n);
+            return c;
+        }
+    }
+
     static List<List<Integer>> nQueen(Integer n) {
-        List<List<Integer>> solution = new ArrayList<>();
-        Stack<List<Integer>> stack = new Stack<>();
-        stack.push(new ArrayList<>());
+        List<int[]> solution = new ArrayList<>();
+        Stack<State> stack = new Stack<>();
+        stack.push(new State(n));
 
         while (!stack.empty()) {
-            List<Integer> cur = stack.pop();
-            if (cur.size() == n) {
+            State cur = stack.pop();
+            if (cur.row == n - 1) {
                 // Deep copy of cur list.
-                solution.add(cur.stream().map(Integer::new).collect(toList()));
+                int[] positionsCopy = new int[n];
+                System.arraycopy(cur.positions, 0, positionsCopy, 0, n);
+                solution.add(positionsCopy);
             } else {
                 for (int i = 0; i < n; ++i) {
-                    cur.add(i);
-                    if (isValid(cur)) {
-                        List<Integer> curClone = cur
-                                .stream().map(Integer::new).collect(toList());
-                        stack.push(curClone);
+                    cur.row++;
+                    cur.positions[cur.row] = i;
+                    if (isVerticalValid(cur.occupied, i)) {
+                        cur.occupied[i] = true;
+                        if (isDiagonalValid(cur) && isAnyAngleValid(cur)) {
+                            stack.push(cur.copy());
+                        }
+                        // Backtracking.
+                        cur.occupied[i] = false;
                     }
-                    cur.remove(cur.size() - 1);
+                    // Backtracking.
+                    cur.positions[cur.row] = -1;
+                    cur.row--;
+
                 }
             }
         }
 
-        return solution;
+        return solution.stream().map(NQueen::toList)
+                .collect(Collectors.toList());
     }
 
-    private static void backTracking(List<Integer> cur,
-                                     Integer n,
-                                     List<List<Integer>> solution) {
-        if (cur.size() == n) {
-            // Deep copy of cur list.
-            solution.add(cur.stream().map(Integer::new).collect(toList()));
-            return;
-        }
-
-        for (int i = 0; i < n; ++i) {
-            cur.add(i);
-            if (isValid(cur)) {
-                backTracking(cur, n, solution);
-            }
-            cur.remove(cur.size() - 1);
-        }
+    private static boolean isVerticalValid(boolean[] occupied, int col) {
+        return !occupied[col];
     }
 
-    private static boolean isValid(List<Integer> cur) {
-        return isVerticalValid(cur) &&
-                isDiagonalValid(cur) &&
-                isAnyAngleValid(cur);
-    }
+    private static boolean isDiagonalValid(State cur) {
+        int curRow = cur.row;
+        int curCol = cur.positions[curRow];
+        for (int row = 0; row < curRow; ++row) {
+            int col = cur.positions[row];
 
-    private static boolean isVerticalValid(List<Integer> cur) {
-        // TODO check whether use hash map to get better performance.
-        int last = cur.get(cur.size() - 1);
-        for (int i = 0; i < cur.size() - 1; ++i) {
-            if (last == cur.get(i)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static boolean isDiagonalValid(List<Integer> cur) {
-        int lastRow = cur.size() - 1;
-        int lastCol = cur.get(lastRow);
-        for (int row = 0; row < cur.size() - 1; ++row) {
-            int col = cur.get(row);
-
-            if (Math.abs(row - lastRow) == Math.abs(col - lastCol)) {
+            if (Math.abs(row - curRow) == Math.abs(col - curCol)) {
                 return false;
             }
         }
@@ -129,16 +139,16 @@ public class NQueen {
      * Check whether there exists 3 queens are in a straight line at ANY angle.
      * If exists, it is not valid and return false, otherwise return true.
      */
-    private static boolean isAnyAngleValid(List<Integer> cur) {
-        int row0 = cur.size() - 1;
-        int col0 = cur.get(row0);
+    private static boolean isAnyAngleValid(State cur) {
+        int row0 = cur.row;
+        int col0 = cur.positions[row0];
 
         for (int row1 = row0 - 1; row1 > 0; --row1) {
-            double col1 = cur.get(row1);
+            double col1 = cur.positions[row1];
             double angle1 = (col1 - col0) / (row1 - row0);
 
             for (int row2 = row1 - 1; row2 >= 0; --row2) {
-                double col2 = cur.get(row2);
+                double col2 = cur.positions[row2];
                 double angle2 = (col2 - col0) / (row2 - row0);
 
                 if (Math.abs(angle1 - angle2) < EPSILON) {
@@ -172,4 +182,7 @@ public class NQueen {
         System.out.print(sb.toString());
     }
 
+    static private List<Integer> toList(int[] array) {
+        return Arrays.stream(array).boxed().collect(Collectors.toList());
+    }
 }

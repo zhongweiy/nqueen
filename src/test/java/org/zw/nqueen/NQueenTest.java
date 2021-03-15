@@ -1,8 +1,9 @@
 package org.zw.nqueen;
 
 import org.junit.Test;
-
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.*;
 
@@ -27,7 +28,7 @@ public class NQueenTest {
         List<Integer> expectSolution0 = Arrays.asList(1, 3, 0, 2);
         List<Integer> expectSolution1 = Arrays.asList(2, 0, 3, 1);
 
-        assertFalse(solution.get(0).equals(solution.get(1)));
+        assertNotEquals(solution.get(0), solution.get(1));
 
         assertTrue(solution.stream().anyMatch(expectSolution0::equals));
         assertTrue(solution.stream().anyMatch(expectSolution1::equals));
@@ -43,4 +44,5 @@ public class NQueenTest {
 
         assertTrue(solution.stream().anyMatch(expectSolution1::equals));
     }
+
 }
