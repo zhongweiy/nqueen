@@ -149,10 +149,14 @@ public class NQueen {
 
             for (int row2 = row1 - 1; row2 >= 0; --row2) {
                 double col2 = cur.positions[row2];
-                double angle2 = (col2 - col0) / (row2 - row0);
 
-                if (Math.abs(angle1 - angle2) < EPSILON) {
-                    return false;
+                if ((col0 < col1 && col1 < col2)
+                        || (col0 > col1 && col1 > col2)) {
+                    double angle2 = (col2 - col0) / (row2 - row0);
+
+                    if (Math.abs(angle1 - angle2) < EPSILON) {
+                        return false;
+                    }
                 }
             }
         }
